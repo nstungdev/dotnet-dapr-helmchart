@@ -1,0 +1,16 @@
+apiVersion: v2
+name: dotnet-dapr-app
+description: A Helm chart for .NET 8 application with Dapr
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Your Name
+    email: your.email@example.com
+keywords:
+  - dotnet
+  - dapr
+  - microservices
+home: https://github.com/nstungdev/dotnet-dapr-helmchart
+sources:
+  - https://github.com/nstungdev/dotnet-dapr-helmchart

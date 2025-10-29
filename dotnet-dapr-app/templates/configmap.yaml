@@ -1,0 +1,25 @@
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dotnet-dapr-app.fullname" . }}-config
+  labels:
+    {{- include "dotnet-dapr-app.labels" . | nindent 4 }}
+data:
+  {{- with .Values.configMap.data }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+  # Default appsettings.json if not provided
+  {{- if not .Values.configMap.data }}
+  appsettings.json: |
+    {
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "AllowedHosts": "*"
+    }
+  {{- end }}
+{{- end }}

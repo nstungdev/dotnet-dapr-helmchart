@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dotnet-dapr-app.fullname" . }}
+  labels:
+    {{- include "dotnet-dapr-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "dotnet-dapr-app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Dapr annotations
+        dapr.io/enabled: "{{ .Values.dapr.enabled }}"
+        dapr.io/app-id: "{{ .Values.dapr.appId }}"
+        dapr.io/app-port: "{{ .Values.service.port }}"
+        dapr.io/app-protocol: "{{ .Values.dapr.appProtocol }}"
+        {{- if .Values.dapr.config }}
+        dapr.io/config: "{{ .Values.dapr.config }}"
+        {{- end }}
+        {{- if .Values.dapr.logLevel }}
+        dapr.io/log-level: "{{ .Values.dapr.logLevel }}"
+        {{- end }}
+        {{- if .Values.dapr.enableProfiling }}
+        dapr.io/enable-profiling: "{{ .Values.dapr.enableProfiling }}"
+        {{- end }}
+        {{- if .Values.dapr.metrics.enabled }}
+        dapr.io/enable-metrics: "true"
+        dapr.io/metrics-port: "{{ .Values.dapr.metrics.port }}"
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "dotnet-dapr-app.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dotnet-dapr-app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "{{ .Values.app.environment }}"
+            - name: ASPNETCORE_URLS
+              value: "http://+:{{ .Values.service.port }}"
+            {{- if .Values.app.connectionStrings.defaultConnection }}
+            - name: ConnectionStrings__DefaultConnection
+              value: "{{ .Values.app.connectionStrings.defaultConnection }}"
+            {{- end }}
+            {{- with .Values.app.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.app.healthCheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.app.healthCheck.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.app.healthCheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.app.healthCheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.app.healthCheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.app.healthCheck.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.app.healthCheck.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.app.healthCheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.app.healthCheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.app.healthCheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.app.healthCheck.readiness.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.configMap.enabled }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: {{ .Values.configMap.mountPath }}
+              readOnly: true
+          {{- end }}
+      {{- if .Values.configMap.enabled }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "dotnet-dapr-app.fullname" . }}-config
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
